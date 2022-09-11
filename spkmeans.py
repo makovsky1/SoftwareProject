@@ -1,0 +1,161 @@
+import pandas as pd 
+import numpy as np
+import sys
+from cmath import inf
+import mykmeanssp as mk
+
+
+def main():
+    try:
+
+        data = processData(sys.argv)
+        if (data == None):
+            print("Invalid Input")
+            return 0
+
+        k = data[0]
+        goal = data[1]
+        N = data[2]
+        dim = data[3]
+        mat = data[4]
+
+        MAX_ITER = 300
+
+        if goal == "spk":
+            (T, K) = mk.spkFit(mat, N, dim, k)
+
+            if T == None or K == None:
+                raise Exception
+            
+            (list_of_centroids, list_of_indices) = kmeansPP(T, N, K, K)
+
+            if list_of_centroids == None or list_of_indices == None:
+                raise Exception
+
+            ord_mat = fixMat(mat, list_of_indices)
+
+            final_centroids = mk.kmeansFit(ord_mat, N, dim, K, MAX_ITER)
+            if final_centroids == None:
+                raise Exception
+
+            # Printing the indices chosen by the Kmeans++ algorithm 
+            print(','.join(str(item) for item in list_of_indices))
+
+            # Printing the calculated final centroids from the K-means algorithm
+            for i in range(K):
+                print(','.join(str("%.4f"%item) for item in final_centroids[i]))
+
+
+        elif goal == "wam":
+            weightedMatrix = mk.weightedFit(mat, N, dim)
+            
+            if weightedMatrix == None:
+                raise Exception
+            
+            #Printing the weighted matrix
+            for i in range(N):
+                print(','.join(str("%.4f"%item) for item in weightedMatrix[i]))
+
+        elif goal == "ddg":
+            diagonalMatrix = mk.diagonalFit(mat, N, dim)
+
+            if diagonalMatrix == None:
+                raise Exception
+            
+            #Printing the diagonal matrix
+            for i in range(N):
+                print(','.join(str("%.4f"%item) for item in diagonalMatrix[i]))
+
+
+        elif goal == "lnorm":
+            lnormMatrix = mk.lnormFit(mat, N, dim)
+
+            if lnormMatrix == None:
+               raise Exception
+            
+            #Printing the lnorm matrix
+            for i in range(N):
+                print(','.join(str("%.4f"%item) for item in lnormMatrix[i]))
+
+        elif goal == "jacobi":
+            (eiganVectorsMatrix, eiganValues) = mk.jacobiFit(mat, N)   
+
+            if eiganVectorsMatrix == None or eiganValues == None:
+                raise Exception
+            
+            #Printing the eiganvalues
+            print(','.join(str("%.4f"%item) for item in eiganValues))
+
+            #Printing the corresponding eigenvectors (as columns)
+            for i in range(N):
+                print(','.join(str("%.4f"%item) for item in eiganVectorsMatrix[i]))
+
+    except:                
+        print("An Error Has Occurred")
+        return
+
+def processData(arr):
+    INPUT_GOAL = ["spk", "wam", "ddg", "lnorm", "jacobi"]
+    if (len(arr) != 4):
+        return None
+    
+    try:
+        k = int(arr[1])
+        goal = arr[2]
+        file_name = arr[3]
+        if goal not in INPUT_GOAL:
+            raise Exception
+
+        file = open(file_name, 'rb')
+        vectors = pd.read_csv(file, header=None)
+        vectors = vectors.to_numpy()
+
+        N = vectors.shape[0]
+        dim = vectors.shape[1]
+
+        if (k < 0 or k > N):
+            raise Exception
+        
+    except:
+        return None
+
+    return [k, goal , N, dim, vectors] 
+
+def kmeansPP(T, N, K, dim):
+    np.random.seed(0)
+    i = 0
+    random_ind = np.random.choice(N)
+    list_of_indices = [random_ind]
+    list_of_centroids = [T[random_ind]]
+
+    dist_array = np.zeros(N) 
+    prob_Array = np.zeros(N)
+
+    while (len(list_of_indices) < K):
+        for r in range(N):
+            low = float('inf')
+            for j in range(i+1):
+                dist = np.square(np.linalg.norm(T[r]-list_of_centroids[j]))
+                if dist < low:
+                    low = dist
+            dist_array[r] = low
+
+        prob_array = dist_array / np.sum(dist_array) 
+        i += 1
+        random_ind = np.random.choice(N, p = prob_array)
+        list_of_indices.append(random_ind)
+        list_of_centroids.append(T[random_ind])
+    
+    return (list_of_centroids, list_of_indices)
+
+def fixMat(mat, list_of_indices):
+    result = []
+
+    for ind in list_of_indices:
+        result.append(mat[ind])
+
+    for i in range(len(mat)):
+        if i not in list_of_indices:
+            result.append(mat[i])
+
+    return result
