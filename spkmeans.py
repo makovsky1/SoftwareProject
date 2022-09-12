@@ -12,52 +12,48 @@ def main():
         if (data == None):
             print("Invalid Input")
             return 0
-
         k = data[0]
         goal = data[1]
         N = data[2]
         dim = data[3]
         mat = data[4]
-
+        mat_copy = mat.tolist()
         MAX_ITER = 300
 
         if goal == "spk":
-            (T, K) = mk.spkFit(mat, N, dim, k)
-
+            T, K = mk.spkFit(mat_copy, N, dim, k)
             if T == None or K == None:
                 raise Exception
-            
-            (list_of_centroids, list_of_indices) = kmeansPP(T, N, K, K)
-
+            print(T)
+            list_of_centroids, list_of_indices = kmeansPP(T, N, K, K)
+            print("0")
             if list_of_centroids == None or list_of_indices == None:
                 raise Exception
 
             ord_mat = fixMat(mat, list_of_indices)
-
+            print("1")
             final_centroids = mk.kmeansFit(ord_mat, N, dim, K, MAX_ITER)
             if final_centroids == None:
                 raise Exception
-
+            print("2")
             # Printing the indices chosen by the Kmeans++ algorithm 
             print(','.join(str(item) for item in list_of_indices))
 
-            # Printing the calculated final centroids from the K-means algorithm
+            # Printing the calculated final centroids from the Kmeans algorithm
             for i in range(K):
                 print(','.join(str("%.4f"%item) for item in final_centroids[i]))
 
 
         elif goal == "wam":
-            weightedMatrix = mk.weightedFit(mat, N, dim)
-            
+            weightedMatrix = mk.weightedFit(mat_copy, N, dim)
             if weightedMatrix == None:
                 raise Exception
-            
             #Printing the weighted matrix
             for i in range(N):
                 print(','.join(str("%.4f"%item) for item in weightedMatrix[i]))
 
         elif goal == "ddg":
-            diagonalMatrix = mk.diagonalFit(mat, N, dim)
+            diagonalMatrix = mk.diagonalFit(mat_copy, N, dim)
 
             if diagonalMatrix == None:
                 raise Exception
@@ -68,7 +64,7 @@ def main():
 
 
         elif goal == "lnorm":
-            lnormMatrix = mk.lnormFit(mat, N, dim)
+            lnormMatrix = mk.lnormFit(mat_copy, N, dim)
 
             if lnormMatrix == None:
                raise Exception
@@ -78,11 +74,9 @@ def main():
                 print(','.join(str("%.4f"%item) for item in lnormMatrix[i]))
 
         elif goal == "jacobi":
-            (eiganVectorsMatrix, eiganValues) = mk.jacobiFit(mat, N)   
-
+            eiganVectorsMatrix, eiganValues = mk.jacobiFit(mat_copy, N)   
             if eiganVectorsMatrix == None or eiganValues == None:
                 raise Exception
-            
             #Printing the eiganvalues
             print(','.join(str("%.4f"%item) for item in eiganValues))
 
@@ -127,7 +121,6 @@ def kmeansPP(T, N, K, dim):
     random_ind = np.random.choice(N)
     list_of_indices = [random_ind]
     list_of_centroids = [T[random_ind]]
-
     dist_array = np.zeros(N) 
     prob_Array = np.zeros(N)
 
@@ -135,7 +128,8 @@ def kmeansPP(T, N, K, dim):
         for r in range(N):
             low = float('inf')
             for j in range(i+1):
-                dist = np.square(np.linalg.norm(T[r]-list_of_centroids[j]))
+                dist = np.square(np.linalg.norm(np.asarray(T[r]) - np.asarray(list_of_centroids[j])))
+
                 if dist < low:
                     low = dist
             dist_array[r] = low
@@ -143,6 +137,7 @@ def kmeansPP(T, N, K, dim):
         prob_array = dist_array / np.sum(dist_array) 
         i += 1
         random_ind = np.random.choice(N, p = prob_array)
+
         list_of_indices.append(random_ind)
         list_of_centroids.append(T[random_ind])
     
@@ -159,3 +154,10 @@ def fixMat(mat, list_of_indices):
             result.append(mat[i])
 
     return result
+
+
+
+
+
+
+main()

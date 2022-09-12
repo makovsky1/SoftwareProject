@@ -2,37 +2,25 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include "spkmeans.h"
 
 
 int ValidateData(char **, int);
 int CalculateNandDim(char *, int *, int *); 
 int FileToMatrix(char *, double ***); 
 
-int WeightedAdjancencyMatrix(double ***, double ***, int, int); 
-int DiagonalDegreeMatirx(double ***, double***, int, int); 
-int NormalizedGraphLaplasian(double ***, double ***, double***, int);
-int Eigengap(double **, int);
-
-double** AllocateMat(int, int); 
-int FreeMat(double ***, int);
-
 double WeightedEuclideanNorm(double ***, int, int, int);
 double MatrixRowSum(double ***, int, int); 
 int MatrixMultiplication(double ***, double ***, double ***, int);
-int Jacobi(double ***, double ***, double **, int); 
 int Pivot(double ***, double ***, double ***, int *, int *, int); 
 int CheckMatrix(double ***, double ***, int);
 int CopyMat(double ***, double ***, int); 
-int SortVectors(double ***, double **, int);
-int UMatrix(double ***, double ***, int, int);
-int TMatrix(double ***, double ***, int, int);
 int CompEiganValues(const void*, const void*);
 int PrintMatrix(double ***, int, int);
 
-int Kmeans(double ***, double***, int, int, int, int);
 int findClosestCentroized(double *, double***, int, int);
 int checkEpsilon(double ***, double ***, int, int);
-double Calcdist(double *, double *, int);
+double CalcDist(double *, double *, int);
 
 
 
@@ -245,34 +233,32 @@ int NormalizedGraphLaplasian(double ***diagonal_matrix, double ***weighted_matri
     double ** first_mul;
     int i, j;
 
-    first_mul = (double **)calloc(N, sizeof(double *));
-    if (first_mul == NULL){
-        return 0;
-    }
+    first_mul = AllocateMat(N, N);
+
+    /* Computing D ^ - (0.5) */
     for (i = 0; i < N; i++){
-        first_mul[i] = (double *)calloc(N, sizeof(double));
-        if (first_mul[i] == NULL){
-            return 0;
-        }
+        (*diagonal_matrix)[i][i] = 1 / pow((*diagonal_matrix)[i][i], 0.5);
     }
+    
     if (MatrixMultiplication(diagonal_matrix,weighted_matrix,&first_mul, N) == 0){
         return 0;
     }
+    
     if (MatrixMultiplication(&first_mul,diagonal_matrix,lnorm_matrix, N) == 0){
         return 0;
     }
-    
+
     for (i = 0; i < N; i++){
         for (j = 0; j < N; j++){
             if (i == j){
                 (*lnorm_matrix)[i][j] = 1 - ((*lnorm_matrix)[i][j]);
             }
+            else{
+                (*lnorm_matrix)[i][j] = 0 - ((*lnorm_matrix)[i][j]);
+            }
         }
     }
-    for (i = 0; i < N; i++){
-        free(first_mul[i]); 
-    }
-    free(first_mul);
+    FreeMat(&first_mul, N);
     return 1;
 }
 
@@ -318,33 +304,35 @@ double WeightedEuclideanNorm(double ***mat, int i, int j, int Dim){
     return exp(-sum / 2);
 }
 
-double MatrixRowSum(double ***weighted_matrix, int i, int Dim){
+double MatrixRowSum(double ***weighted_matrix, int i, int dim){
     double sum = 0;
     int k;
 
-    for (k = 0; k < Dim; k++){
+    for (k = 0; k < dim; k++){
         sum = sum + (*weighted_matrix)[i][k];
     }
 
-    return 1 / pow(sum,0.5);
+    return sum;
 }
 
 int MatrixMultiplication(double ***mat1, double ***mat2, double ***res, int N){
-    int row1, col1, col2, sum = 0;
+    int row1, col1, col2;
+    double sum = 0.0;
+    
     for (row1 = 0; row1 < N; row1++) {
       for (col2 = 0; col2 < N; col2++) {
+        sum = 0.0;
         for (col1 = 0; col1 < N; col1++) {
-          sum = sum + (*mat1)[row1][col1] * (*mat2)[col1][col2];
+          sum += (*mat1)[row1][col1] * (*mat2)[col1][col2];
         }
         (*res)[row1][col2] = sum;
-        sum = 0;
       }
     }
     return 1;
 }
 
-int Jacobi (double ***data_matrix, double ***eigen_vectors_matrix, double **eigan_values, int N){
-    int i, ind1, ind2, iter = 0;
+int Jacobi(double ***data_matrix, double ***eigen_vectors_matrix, double **eigan_values, int N){
+    int i, ind1 = 0, ind2 = 0, iter = 0;
     int TOP = 100;
     double ** pivot_matrix, ** temp_matrix, ** A, ** Atag;
 
@@ -356,72 +344,74 @@ int Jacobi (double ***data_matrix, double ***eigen_vectors_matrix, double **eiga
     if (pivot_matrix == NULL || temp_matrix == NULL || A == NULL || Atag == NULL){
         return 0;
     }
+    
     CopyMat(&A,data_matrix, N);
+    CopyMat(&Atag, &A, N);
     for (i = 0; i < N; i ++){
-            pivot_matrix[i][i] = 1;
-            (*eigen_vectors_matrix)[i][i] = 1;
-            temp_matrix[i][i] = 1;
+            pivot_matrix[i][i] = 1.0;
+            (*eigen_vectors_matrix)[i][i] = 1.0;
+            temp_matrix[i][i] = 1.0;
     }
-
+    
     do {
         if (Pivot(&pivot_matrix, &A, &Atag, &ind1, &ind2, N) == 1){
-            MatrixMultiplication (eigen_vectors_matrix, &pivot_matrix, &temp_matrix, N);
+            MatrixMultiplication(eigen_vectors_matrix, &pivot_matrix, &temp_matrix, N);
             CopyMat(eigen_vectors_matrix, &temp_matrix, N);
             break;
-        } 
+        }
+        CopyMat(&A, &Atag, N);
         MatrixMultiplication (eigen_vectors_matrix, &pivot_matrix, &temp_matrix, N);
         CopyMat(eigen_vectors_matrix, &temp_matrix, N);
         iter ++;
 
-    }
-    while (iter < TOP);
+    } while (iter < TOP);
 
     for (i = 0; i < N; i++){
         (*eigan_values)[i] = Atag[i][i];
     }
-
-    free(pivot_matrix);
-    free(temp_matrix);
-    free(A);
-    free(Atag);
+    FreeMat(&pivot_matrix, N);
+    FreeMat(&temp_matrix, N);
+    FreeMat(&A, N);
+    FreeMat(&Atag, N);
     return 1;
 }
 
-int Pivot (double ***pivot_matrix, double ***A, double ***Atag, int *ind1, int *ind2, int N){
-    int max = 0;
-    int teta = 0;
-    int t,c,s = 0;
-    int sign = 1;
+int Pivot(double ***pivot_matrix, double ***A, double ***Atag, int *ind1, int *ind2, int N){
+    double max = 0.0;
+    double teta = 0.0;
+    double t,c,s = 0.0;
+    double sign = 1.0;
     int r,k;
-
-    (*pivot_matrix)[*ind1][*ind1] = 1;
-    (*pivot_matrix)[*ind1][*ind2] = 0;
-    (*pivot_matrix)[*ind2][*ind1] = 0;
-    (*pivot_matrix)[*ind2][*ind2] = 1;
     
+    /* Reseting the rotation matrix */
+    (*pivot_matrix)[*ind1][*ind1] = 1.0;
+    (*pivot_matrix)[*ind1][*ind2] = 0.0;
+    (*pivot_matrix)[*ind2][*ind1] = 0.0;
+    (*pivot_matrix)[*ind2][*ind2] = 1.0;
+
+    /* Finding i,j for the pivot (the largest off-diagonal element) */
     for (r = 0; r < N; r++){
-        for (k = 0; k < N; k++){
-            if (r != k){
-                if (fabs((*A)[r][k]) > max){
-                    (*ind1) = r;
-                    (*ind2) = k;
-                    max = fabs((*A)[r][k]);
-                }
+        for (k = r + 1; k < N; k++){
+            if (fabs((*A)[r][k]) > max){
+                (*ind1) = r;
+                (*ind2) = k;
+                max = fabs((*A)[r][k]);
             }
         }
     }
 
+    /* Calculating the necessary values (teta, t, c, s)*/
     teta = ((*A)[*ind2][*ind2] - (*A)[*ind1][*ind1]) / (2 * (*A)[*ind1][*ind2]);
-    if (teta < 0){
-        sign = -1;
-    }
-    t = sign / (fabs(teta) + pow((teta*teta) + 1, 0.5));
-    c = 1 / (pow((t*t) + 1, 0.5));
+    sign = teta >= 0 ? 1.0 : -1.0;
+
+    t = sign / (fabs(teta) + pow((teta*teta) + 1.0, 0.5));
+    c = 1 / (pow((t*t) + 1.0, 0.5));
     s = t * c;
 
     (*pivot_matrix)[*ind1][*ind1] = c;
     (*pivot_matrix)[*ind2][*ind2] = c;
 
+    /* Updating the rotation matrix */
     if ((*ind1) > (*ind2)){
         (*pivot_matrix)[*ind1][*ind2] = -s;
         (*pivot_matrix)[*ind2][*ind1] = s;
@@ -431,7 +421,7 @@ int Pivot (double ***pivot_matrix, double ***A, double ***Atag, int *ind1, int *
         (*pivot_matrix)[*ind1][*ind2] = s;
 
     }
-
+    /* Calculating Atag matrix */
     for (r = 0; r < N; r++){
         if (r != (*ind1) && r != (*ind2)){
             (*Atag)[r][*ind1] = (c * (*A)[r][*ind1]) - (s * (*A)[r][*ind2]);
@@ -440,19 +430,18 @@ int Pivot (double ***pivot_matrix, double ***A, double ***Atag, int *ind1, int *
             (*Atag)[*ind2][r] = (c * (*A)[r][*ind2]) + (s * (*A)[r][*ind1]);
         }     
     }
-
+    /* Complete Atag matrix calculation */
     (*Atag)[*ind1][*ind1] = ((c * c) * (*A)[*ind1][*ind1]) + ((s * s) * (*A)[*ind2][*ind2]) - (2 * s * c * (*A)[*ind1][*ind2]);
     (*Atag)[*ind2][*ind2] = ((s * s) * (*A)[*ind1][*ind1]) + ((c * c) * (*A)[*ind2][*ind2]) + (2 * s * c * (*A)[*ind1][*ind2]);
     (*Atag)[*ind1][*ind2] = 0;
     (*Atag)[*ind2][*ind1] = 0;
-
     return CheckMatrix(A, Atag, N);
 }
 
 int CheckMatrix(double ***mat1, double ***mat2, int N){
     int i, j;
-    double temp_sum = 0;
-    double temp_sum_tag = 0 ;
+    double temp_sum = 0.0;
+    double temp_sum_tag = 0.0 ;
     double eps = 0.00001;
 
     for (i = 0; i < N; i++){
@@ -545,11 +534,22 @@ int PrintMatrix(double ***mat, int N, int M){
 /* kmeans functions */
 
 int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, int MAX_ITER){
-    int i, j, m, r,iterCounter = 0, index = 0, eps_check = 1;
+    int i, j, m, r, iter_counter = 0, index = 0, eps_check = 1;
     double **old_cent, **new_cent;
     int *clusters_size;
 
-    while (iterCounter < MAX_ITER && eps_check == 1) {
+    new_cent = AllocateMat(K, dim);
+    old_cent = AllocateMat(K, dim);
+    clusters_size = (int *)calloc(K, sizeof(int));
+
+    /* Initialized first case centroids */
+    for (i = 0; i < K; i++){
+        for (j = 0; j < dim; j++){
+            old_cent[i][j] = (*centroids)[i][j];
+        }
+    }
+
+    while (iter_counter < MAX_ITER && eps_check == 1){
         for (j = 0; j < K; j++){
             for (m = 0; m < dim; m++){
                 new_cent[j][m] = 0.0;
@@ -560,21 +560,21 @@ int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, in
             clusters_size[j] = 0;
         }
 
-        for (i=0;i<N;i++){
+        for (i = 0; i < N; i++){
             index = findClosestCentroized((*data_matrix)[i], &old_cent, K, dim);
             clusters_size[index]++;
 
-            for(r = 0; r < dim; r++){
+            for (r = 0; r < dim; r++){
                 new_cent[index][r] += (*data_matrix)[i][r];
             }
         }
 
-        for(i = 0; i < K; i++){
+        for (i = 0; i < K; i++){
             for(r = 0; r < dim; r++){
                 new_cent[i][r] = (new_cent[i][r]) / (clusters_size[i]);
             }
         }
-        iterCounter++;
+        iter_counter++;
         eps_check = checkEpsilon(&new_cent, &old_cent, K, dim);
         for (i = 0; i < K; i++){
             for (j = 0; j < dim; j++){
@@ -582,16 +582,27 @@ int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, in
             }
         }
     }
+
+    for (i = 0; i < K; i++){
+        for (j = 0; j < dim; j++){
+            (*centroids)[i][j] = new_cent[i][j];
+        }
+    }
+
+    FreeMat(&new_cent, K);
+    FreeMat(&old_cent, K);
+    free(clusters_size);
+
     return 1;
 }
 
 int findClosestCentroized(double *vector, double ***old_cent, int k, int dim){
     double temp_dis = -1.0;
-    double low_dis = Calcdist(vector, (*old_cent)[0], dim);
+    double low_dis = CalcDist(vector, (*old_cent)[0], dim);
     int i, index = 0;
 
-    for(i = 1; i < k; i++){
-        temp_dis = Calcdist(vector, (*old_cent)[i], dim);
+    for (i = 1; i < k; i++){
+        temp_dis = CalcDist(vector, (*old_cent)[i], dim);
         if(temp_dis < low_dis){
             index = i;
             low_dis = temp_dis;
@@ -601,18 +612,18 @@ int findClosestCentroized(double *vector, double ***old_cent, int k, int dim){
 }
 
 int checkEpsilon(double ***old_cent ,double ***new_cent, int K, int dim){
-    double eps = 0.001;
+    double eps = 0.0;
     int i;
 
     for (i = 0; i < K; i++){
-        if(Calcdist((*old_cent)[i], (*new_cent)[i], dim) >= eps){
+        if (CalcDist((*old_cent)[i], (*new_cent)[i], dim) >= eps){
             return 0;
         }
     }
     return 1;
 }
 
-double Calcdist(double *vec1, double *vec2, int dim){
+double CalcDist(double *vec1, double *vec2, int dim){
     int i;
     double sum = 0.0, temp = 0.0;
     for (i = 0; i < dim; i++){

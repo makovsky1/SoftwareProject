@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/Yonatan/Desktop/שנה ב סמסטר ב/פרויקט תוכנה/finalProject",
-      "program": "c:/Users/Yonatan/Desktop/שנה ב סמסטר ב/פרויקט תוכנה/finalProject/build/Debug/outDebug",
+      "cwd": "c:/Users/Yonatan/Desktop/אישי/לימודים/שנה ב/סמסטר ב/פרויקט תוכנה/finalProject",
+      "program": "c:/Users/Yonatan/Desktop/אישי/לימודים/שנה ב/סמסטר ב/פרויקט תוכנה/finalProject/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

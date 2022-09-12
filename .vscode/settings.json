@@ -34,6 +34,7 @@
     "math.h": "c",
     "type_traits": "c",
     "stdlib.h": "c",
-    "python.h": "c"
+    "python.h": "c",
+    "cmath": "c"
   }
 }
