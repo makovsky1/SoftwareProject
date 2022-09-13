@@ -18,7 +18,7 @@ int CopyMat(double ***, double ***, int);
 int CompEiganValues(const void*, const void*);
 int PrintMatrix(double ***, int, int);
 
-int findClosestCentroized(double *, double***, int, int);
+int FindClosestCentroids(double *, double***, int, int);
 int checkEpsilon(double ***, double ***, int, int);
 double CalcDist(double *, double *, int);
 
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]){
     }
 
     if (FileToMatrix(argv[2], &data_matrix) == 0){
-        printf("Invalid Input!");
+        fe("Invalid Input!");
         return 0;
     }
 
@@ -265,8 +265,8 @@ int NormalizedGraphLaplasian(double ***diagonal_matrix, double ***weighted_matri
 }
 
 int Eigengap(double **eigen_values, int N){
-    int max = 0;
-    int i;
+    int i, index = -1;
+    double max = -1.0;
     double * eigan_values_copy;
     
     eigan_values_copy = (double *)(calloc(N, sizeof(double)));
@@ -282,17 +282,26 @@ int Eigengap(double **eigen_values, int N){
     qsort(eigan_values_copy, N, sizeof(double), CompEiganValues);
 
     for (i = 0; i < floor((N / 2)); i++){
-        if (abs((eigan_values_copy)[i] - (eigan_values_copy)[i+1]) >= (max)){
-            max = abs((eigan_values_copy)[i] - (eigan_values_copy)[i+1]);
+        if (fabs((eigan_values_copy)[i] - (eigan_values_copy)[i+1]) > max){
+            max = fabs((eigan_values_copy)[i] - (eigan_values_copy)[i+1]);
+            index = i + 1;
         }
     }
     free(eigan_values_copy);
-
-    return max;
+    return index;
 }
 
 int CompEiganValues(const void *a, const void *b){
-    return *((double *)b) - *((double*)a);
+    double res = *((double *)b) - *((double*)a);
+    if (res > 0){
+        return 1;
+    }
+    else{
+        if (res < 0){
+            return -1;
+        }
+    }
+    return 0;
 }
 
 double WeightedEuclideanNorm(double ***mat, int i, int j, int Dim){
@@ -480,7 +489,7 @@ int SortVectors(double ***eigan_vectors_matrix, double **eigan_values, int N){
     while (!flag){
         flag = 1;
         for (i = 0; i < N - 1; i++){
-            if ((*eigan_values)[i] > (*eigan_values)[i+1]){
+            if ((*eigan_values)[i] < (*eigan_values)[i+1]){
                 flag = 0;
                 temp = (*eigan_values)[i+1];
                 (*eigan_values)[i+1] = (*eigan_values)[i];
@@ -550,11 +559,13 @@ int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, in
     new_cent = AllocateMat(K, dim);
     old_cent = AllocateMat(K, dim);
     clusters_size = (int *)calloc(K, sizeof(int));
-
-    /* Initialized first case centroids */
+    if (new_cent == NULL || old_cent == NULL || clusters_size == NULL){
+        return 0;
+    }
+    /* Initialized first K centroids */
     for (i = 0; i < K; i++){
         for (j = 0; j < dim; j++){
-            old_cent[i][j] = (*centroids)[i][j];
+            old_cent[i][j] = (*data_matrix)[i][j];
         }
     }
 
@@ -570,7 +581,7 @@ int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, in
         }
 
         for (i = 0; i < N; i++){
-            index = findClosestCentroized((*data_matrix)[i], &old_cent, K, dim);
+            index = FindClosestCentroids((*data_matrix)[i], &old_cent, K, dim);
             clusters_size[index]++;
 
             for (r = 0; r < dim; r++){
@@ -605,7 +616,7 @@ int Kmeans(double ***data_matrix, double ***centroids, int N, int dim, int K, in
     return 1;
 }
 
-int findClosestCentroized(double *vector, double ***old_cent, int k, int dim){
+int FindClosestCentroids(double *vector, double ***old_cent, int k, int dim){
     double temp_dis = -1.0;
     double low_dis = CalcDist(vector, (*old_cent)[0], dim);
     int i, index = 0;
@@ -617,6 +628,7 @@ int findClosestCentroized(double *vector, double ***old_cent, int k, int dim){
             low_dis = temp_dis;
         }
     }
+
     return index;
 }
 
