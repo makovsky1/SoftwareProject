@@ -23,16 +23,19 @@ def main():
         if goal == "spk":
             T = mk.spkFit(mat_copy, N, dim, k)
             K = len(T[0])
+            
             if T == None:
                 raise Exception
+
             list_of_centroids, list_of_indices = kmeansPP(T, N, K, K)
             if list_of_centroids == None or list_of_indices == None:
                 raise Exception
 
-            ord_mat = fixMat(mat, list_of_indices)
-            final_centroids = mk.kmeansFit(ord_mat, N, dim, K, MAX_ITER)
+            ord_mat = fixMat(T, list_of_indices)
+            final_centroids = mk.kmeansFit(ord_mat, N, K, K, MAX_ITER)
             if final_centroids == None:
                 raise Exception
+
             # Printing the indices chosen by the Kmeans++ algorithm 
             print(','.join(str(item) for item in list_of_indices))
 
@@ -151,10 +154,6 @@ def fixMat(mat, list_of_indices):
             result.append(mat[i])
 
     return result
-
-
-
-
 
 
 main()
