@@ -29,6 +29,7 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     }  
       
     mat = (double**)InitMat(mat_py, N, dim); 
+    
     if (mat == NULL)
         return Py_BuildValue("");
 
@@ -41,19 +42,23 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     if (weighted_matrix == NULL || diagonal_matrix == NULL || lnorm_matrix == NULL || eigan_vectors_matrix == NULL || eigan_values == NULL){
         return Py_BuildValue("");
     }
+    
     if (WeightedAdjancencyMatrix(&mat, &weighted_matrix, N, dim) == 0){
         return Py_BuildValue("");
     }
+
     if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N) == 0){
         return Py_BuildValue("");
     }
+
     if (NormalizedGraphLaplasian(&diagonal_matrix, &weighted_matrix, &lnorm_matrix, N) == 0){
         return Py_BuildValue("");
     }
+
     if (Jacobi(&lnorm_matrix, &eigan_vectors_matrix, &eigan_values, N) == 0){
         return Py_BuildValue("");
     }
-
+    
     if (K == 0){
         K = Eigengap(&eigan_values, N);
         if (K == -1){
@@ -64,13 +69,13 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     if (SortVectors(&eigan_vectors_matrix, &eigan_values, N) == 0){
         return Py_BuildValue("");
     }
+
     u_matrix = AllocateMat(N, K);
     if (UMatrix(&eigan_vectors_matrix, &u_matrix, N, K) == 0){
         return Py_BuildValue("");
     }
-
+    
     t_matrix = AllocateMat(N, K);
-
     if (TMatrix(&u_matrix, &t_matrix, N, K) == 0){
         return Py_BuildValue("");
     }
@@ -257,9 +262,11 @@ static PyObject* kmeansFit(PyObject *self, PyObject *args){
     if (centroids == NULL){
         return Py_BuildValue("");
     }
+
     if (Kmeans(&mat, &centroids, N, dim, K, MAX_ITER) == 0){
         return Py_BuildValue("");
     }
+
     centroids_py = InitPyObject(&centroids, N, dim);
     FreeMat(&mat, N);
     FreeMat(&centroids, N);
