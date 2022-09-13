@@ -43,7 +43,6 @@ int main(int argc, char *argv[]){
         printf("Invalid input");
         return 0;
     }
-
     data_matrix = AllocateMat(N, Dim);
     
     if (data_matrix == NULL){
@@ -61,6 +60,7 @@ int main(int argc, char *argv[]){
         weighted_matrix = AllocateMat(N, N); 
         WeightedAdjancencyMatrix(&data_matrix, &weighted_matrix, N, Dim);
         PrintMatrix(&weighted_matrix, N, N);
+        FreeMat(&data_matrix, N);
         FreeMat(&weighted_matrix, N);
         return 1;
     }
@@ -68,8 +68,9 @@ int main(int argc, char *argv[]){
         weighted_matrix = AllocateMat(N, N);
         diagonal_matrix = AllocateMat(N, N);
         WeightedAdjancencyMatrix(&data_matrix, &weighted_matrix, N, Dim);
-        DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N, Dim);
+        DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N);
         PrintMatrix(&diagonal_matrix, N, N);
+        FreeMat(&data_matrix, N);
         FreeMat(&weighted_matrix, N);
         FreeMat(&diagonal_matrix, N);
         return 1;
@@ -79,9 +80,10 @@ int main(int argc, char *argv[]){
         diagonal_matrix = AllocateMat(N, N);
         lnorm_matrix = AllocateMat(N,N);
         WeightedAdjancencyMatrix(&data_matrix, &weighted_matrix, N, Dim);
-        DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N, Dim);
+        DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N);
         NormalizedGraphLaplasian(&diagonal_matrix, &weighted_matrix, &lnorm_matrix, N);
         PrintMatrix(&lnorm_matrix, N, N);
+        FreeMat(&data_matrix, N);
         FreeMat(&weighted_matrix, N);
         FreeMat(&diagonal_matrix, N);
         FreeMat(&lnorm_matrix, N);
@@ -101,11 +103,13 @@ int main(int argc, char *argv[]){
             return 0;
         }
 
-        for(i = 0; i <  N; i++){
-            printf("%.4f ",eigan_values[i]);
+        for (i = 0; i <  N-1; i++){
+            printf("%.4f,",eigan_values[i]);
         }
+        printf("%.4f",eigan_values[N-1]);
         printf("\n");
         PrintMatrix(&eigen_vectors_matrix, N, N);
+        FreeMat(&data_matrix, N);
         FreeMat(&eigen_vectors_matrix, N);
         free(eigan_values);
     }
@@ -139,8 +143,6 @@ int CalculateNandDim(char *file_name, int *N, int *Dim){
         }
     }
 
-    NumOfVectors++; /* TODO **************** is there /n in the end of the file? */
-
     *N = NumOfVectors;
     *Dim = CurrDim;
     fclose(ifp);
@@ -168,7 +170,7 @@ int FileToMatrix(char *file_name, double ***mat){
             i++;
         }
     }
-    (*mat)[i][j] = cord;
+    /*(*mat)[i][j] = cord;*/
     fclose(ifp);
     return 1;
 }
@@ -214,7 +216,7 @@ int WeightedAdjancencyMatrix(double ***mat, double ***weighted_matrix, int N, in
     return 1;
 }
 
-int DiagonalDegreeMatirx(double ***weighted_matrix, double ***diagonal_matrix, int N, int Dim){
+int DiagonalDegreeMatirx(double ***weighted_matrix, double ***diagonal_matrix, int N){
     int i, j;
     for (i = 0; i < N; i++){
         for (j = 0; j < N; j++){
@@ -222,7 +224,7 @@ int DiagonalDegreeMatirx(double ***weighted_matrix, double ***diagonal_matrix, i
                 (*diagonal_matrix)[i][j] = 0.0;
             }
             else{
-                (*diagonal_matrix)[i][j] = MatrixRowSum(weighted_matrix, i, Dim);
+                (*diagonal_matrix)[i][j] = MatrixRowSum(weighted_matrix, i, N);
             }
         }
     }
@@ -304,11 +306,11 @@ double WeightedEuclideanNorm(double ***mat, int i, int j, int Dim){
     return exp(-sum / 2);
 }
 
-double MatrixRowSum(double ***weighted_matrix, int i, int dim){
+double MatrixRowSum(double ***weighted_matrix, int i, int N){
     double sum = 0;
     int k;
 
-    for (k = 0; k < dim; k++){
+    for (k = 0; k < N; k++){
         sum = sum + (*weighted_matrix)[i][k];
     }
 
@@ -400,6 +402,10 @@ int Pivot(double ***pivot_matrix, double ***A, double ***Atag, int *ind1, int *i
         }
     }
 
+    if (max == 0.0){
+        return 1;
+    }
+
     /* Calculating the necessary values (teta, t, c, s)*/
     teta = ((*A)[*ind2][*ind2] - (*A)[*ind1][*ind1]) / (2 * (*A)[*ind1][*ind2]);
     sign = teta >= 0 ? 1.0 : -1.0;
@@ -471,12 +477,12 @@ int SortVectors(double ***eigan_vectors_matrix, double **eigan_values, int N){
     int i, row, flag = 0;
     double temp;
 
-    while(!flag){
+    while (!flag){
         flag = 1;
         for (i = 0; i < N - 1; i++){
             if ((*eigan_values)[i] > (*eigan_values)[i+1]){
                 flag = 0;
-                temp = *(eigan_values)[i+1];
+                temp = (*eigan_values)[i+1];
                 (*eigan_values)[i+1] = (*eigan_values)[i];
                 (*eigan_values)[i] = temp;
                 for (row = 0; row < N; row++){
@@ -500,32 +506,35 @@ int UMatrix(double ***eigan_vactors_matrix, double ***u_matrix, int N, int K){
     return 1;
 }
 
-int TMatrix(double ***u_matrix, double ***t_matrix, int N, int K){
+int TMatrix(double *** u_matrix, double *** t_matrix, int N, int K){
     int i, j;
-    double row;
-
-    for (i = 0 ;i < N; i++){
-        row = 0;
+    double row = 0.0;
+    
+    for (i = 0 ; i < N; i++){
+        row = 0.0;
         for (j = 0; j < K; j++){
-            row += pow((*u_matrix)[i][j],2);
+            row += (*u_matrix)[i][j] * (*u_matrix)[i][j];
         }
-        row = pow(row,0.5);
-        for (j = 0; j < K; j++){
-            (*t_matrix)[i][j] = (*u_matrix)[i][j] / row;
+        
+        row = pow(row, 0.5);
+        if (row != 0.0){
+            for (j = 0; j < K; j++){
+                (*t_matrix)[i][j] = (*u_matrix)[i][j] / row;
+            }
         }
     }
     return 1;
 }
 
-int PrintMatrix(double ***mat, int N, int M){
+int PrintMatrix(double ***mat, int rows, int cols){
     int row, col;
 
-    for (row = 0; row < M; row++){
-        for (col = 0; col < N - 1; col++){
+    for (row = 0; row < rows; row++){
+        for (col = 0; col < cols - 1; col++){
             printf("%.4f", (*mat)[row][col]);
             printf(",");
         }
-        printf("%.4f", (*mat)[row][N-1]);
+        printf("%.4f", (*mat)[row][cols - 1]);
         printf("\n");
     }
     return 1;
