@@ -22,9 +22,6 @@ int FindClosestCentroids(double *, double***, int, int);
 int checkEpsilon(double ***, double ***, int, int);
 double CalcDist(double *, double *, int);
 
-
-
-
 int main(int argc, char *argv[]){
     char* goal;
     int N;
@@ -51,7 +48,7 @@ int main(int argc, char *argv[]){
     }
 
     if (FileToMatrix(argv[2], &data_matrix) == 0){
-        fe("Invalid Input!");
+        printf("Invalid Input!");
         return 0;
     }
 
