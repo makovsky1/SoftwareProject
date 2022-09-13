@@ -1,6 +1,6 @@
 double** AllocateMat(int, int); 
 int WeightedAdjancencyMatrix(double ***, double ***, int, int); 
-int DiagonalDegreeMatirx(double ***, double***, int, int); 
+int DiagonalDegreeMatirx(double ***, double***, int); 
 int NormalizedGraphLaplasian(double ***, double ***, double***, int);
 int Eigengap(double **, int);
 int Jacobi(double ***, double ***, double **, int); 
