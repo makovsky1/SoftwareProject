@@ -44,7 +44,7 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     if (WeightedAdjancencyMatrix(&mat, &weighted_matrix, N, dim) == 0){
         return Py_BuildValue("");
     }
-    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N, dim) == 0){
+    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N) == 0){
         return Py_BuildValue("");
     }
     if (NormalizedGraphLaplasian(&diagonal_matrix, &weighted_matrix, &lnorm_matrix, N) == 0){
@@ -53,6 +53,7 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     if (Jacobi(&lnorm_matrix, &eigan_vectors_matrix, &eigan_values, N) == 0){
         return Py_BuildValue("");
     }
+
     if (K == 0){
         K = Eigengap(&eigan_values, N);
         if (K == -1){
@@ -63,13 +64,13 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     if (SortVectors(&eigan_vectors_matrix, &eigan_values, N) == 0){
         return Py_BuildValue("");
     }
-
     u_matrix = AllocateMat(N, K);
     if (UMatrix(&eigan_vectors_matrix, &u_matrix, N, K) == 0){
         return Py_BuildValue("");
     }
 
     t_matrix = AllocateMat(N, K);
+
     if (TMatrix(&u_matrix, &t_matrix, N, K) == 0){
         return Py_BuildValue("");
     }
@@ -81,10 +82,10 @@ static PyObject* spkFit(PyObject *self, PyObject *args){
     FreeMat(&eigan_vectors_matrix, N);
     FreeMat(&u_matrix, N);
     free(eigan_values);
-
+    
     res_py = InitPyObject(&t_matrix, N, K);
     FreeMat(&t_matrix, N);
-    return Py_BuildValue("(Oi)", res_py, K); 
+    return Py_BuildValue("O", res_py); 
 }
 
 static PyObject* weightedFit(PyObject *self, PyObject *args){
@@ -146,10 +147,9 @@ static PyObject* diagonalFit(PyObject *self, PyObject *args){
         return Py_BuildValue("");
     }
 
-    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N, dim) == 0){
+    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N) == 0){
         return Py_BuildValue("");
     }
-
     res_py = InitPyObject(&diagonal_matrix, N, N);
     FreeMat(&mat, N);
     FreeMat(&weighted_matrix, N);
@@ -183,7 +183,7 @@ static PyObject* lnormFit(PyObject *self, PyObject *args){
     if (WeightedAdjancencyMatrix(&mat, &weighted_matrix, N, dim) == 0){
         return Py_BuildValue("");
     }
-    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N, dim) == 0){
+    if (DiagonalDegreeMatirx(&weighted_matrix, &diagonal_matrix, N) == 0){
         return Py_BuildValue("");
     }
     if (NormalizedGraphLaplasian(&diagonal_matrix, &weighted_matrix, &lnorm_matrix, N) == 0){
